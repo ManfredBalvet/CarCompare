@@ -1,65 +1,58 @@
-from car_data import CarData
-import re
 from url_opener import download_url
 
 
-def scrape(urls: list[str]) -> list[CarData]:
+def scrape(urls: list[str]) -> list[list[str]]:
     all_car_data = []
+    parser = ReadHTML()
     for url in urls:
-        manufacturer = url.rsplit("/")[4]
-        model = url.rsplit("/")[5]
-        year = url.rsplit("/")[6]
-        version = url.rsplit("/")[8]
-        car_from_url = CarData(manufacturer, model, year, version)
-        trs = __get_tr(url)
-        print("trs: ", trs)
-        for tr in trs:
-            print(tr)
-            th = __get_th(tr)
-            td = __get_td(tr)
-            print(3, th, td)
-            setattr(car_from_url, th, td)
-        all_car_data.append(car_from_url)
+        url_content = download_url(url)
+        url_parts = url.rsplit("/")
+        car_data = [
+            ["Manufacturier", url_parts[4]],
+            ["Modèle", url_parts[5]],
+            ["Année", url_parts[6]],
+        ]
+        parser.feed(url_content)
+        car_data.extend(parser.this_car_data)
+        print("Adding information for " + car_data[0][1] + " " + car_data[1][1] + " " + car_data[2][1] + " " + car_data[3][1])
+        parser.last_tag = ""
+        parser.this_tag = ""
+        parser.this_car_data = []
+        parser.possible_header = ""
+        parser.this_attrs = ""
+
+        all_car_data.append(car_data)
 
     return all_car_data
 
 
-def __get_tr(url: str) -> list[str]:
-    url_content = download_url(url)
-    if url_content == "":
-        trs = ""
-    else:
-        pattern_start = "<tr>"
-        pattern_end = "</tr>"
-        pattern = pattern_start + "(.+)" + pattern_end
-        print("Pattern: ", pattern)
-        trs = re.findall(pattern, url_content)  # TODO
+class ReadHTML(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.last_tag = ""
+        self.this_tag = ""
+        self.this_car_data = []
+        self.possible_header = ""
+        self.this_attrs = ""
 
-    return trs
+    def handle_starttag(self, tag, attrs):
+        self.last_tag = self.this_tag
+        self.this_tag = tag
+        self.this_attrs = attrs
 
+    def handle_endtag(self, tag):
+        pass
 
-def __get_th(tr: str) -> str:
-    pattern_start = "<th>"
-    pattern_end = "</th>"
-    pattern = pattern_start + "(.+)" + pattern_end
-    th = re.findall(pattern, tr)[0]
-    print("th: ", th)
+    def handle_data(self, data):
+        if "\n" in data:
+            pass
+        else:
+            if self.this_tag == "th" or (self.this_tag == "abbr" and self.last_tag == "th"):
+                self.possible_header = data.replace("\xa0", " ")
 
-    return __if_abbr(th)
+            if self.this_tag == "td" or (self.this_tag == "abbr" and self.last_tag == "td"):
+                self.this_car_data.extend([[self.possible_header, data.replace("\xa0", " ")]])
 
-
-def __get_td(tr: str) -> str:
-    pattern_start = "<td>"
-    pattern_end = "</td>"
-    pattern = pattern_start + "(.+)" + pattern_end
-    td = re.findall(pattern, tr)[0]
-    print("td: ", td)
-
-    return __if_abbr(td)
-
-
-def __if_abbr(t: str) -> str:
-    if "abbr" in t:
-        t = re.findall(">" + "(.+)" + "<", t)[0]
-
-    return t
+            if self.this_tag == "option" and len(self.this_attrs) == 2:
+                if "selected" in self.this_attrs[1]:
+                    self.this_car_data = [["Version", data.split(" - ")[0]]]
