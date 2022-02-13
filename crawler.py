@@ -5,11 +5,11 @@ from html.parser import HTMLParser
 def crawl(url: str) -> list[str]:
     manufacturers_url = __crawl_manufacturers(url)
     versions_url = []
-    for manufacturer_url in manufacturers_url:
+    for manufacturer_url in manufacturers_url[31:32]:
         models_url = __crawl_models(manufacturer_url)
         for model_url in models_url:
             years_url = __crawl_years(model_url)
-            for year_url in years_url:
+            for year_url in years_url[0:1]:
                 versions_url.extend(__crawl_versions(year_url))
                 for version_url in versions_url:
                     print("Adding to the list " + version_url)
@@ -55,7 +55,7 @@ def __crawl_versions(year_url: str) -> list[str]:
     parser = ReadVersionHTML()
     parser.feed(url_content)
 
-    return [specs_url.rsplit("/", 2)[0] + "/specifications/" + version for version in parser.versions]
+    return [specs_url.rsplit("/", 1)[0] + "/" + version for version in parser.versions]
 
 
 class ReadManufacturerHTML(HTMLParser):

@@ -20,6 +20,9 @@ def scrape(urls: list[str]) -> list[list[str]]:
         parser.this_car_data = []
         parser.possible_header = ""
         parser.this_attrs = ""
+        parser.motor = 0
+        parser.end_tag = ""
+        parser.new_motor = False
 
         all_car_data.append(car_data)
 
@@ -34,14 +37,15 @@ class ReadHTML(HTMLParser):
         self.this_car_data = []
         self.possible_header = ""
         self.this_attrs = ""
+        self.motor = 0
+        self.end_tag = ""
+        self.new_motor = False
+        self.motor_spec = ["Moteur", "Puissance", "Couple", "Alimentation", "Type de carburant"]  # TODO: Not do it hard coded??
 
     def handle_starttag(self, tag, attrs):
         self.last_tag = self.this_tag
         self.this_tag = tag
         self.this_attrs = attrs
-
-    def handle_endtag(self, tag):
-        pass
 
     def handle_data(self, data):
         if "\n" in data:
@@ -51,6 +55,11 @@ class ReadHTML(HTMLParser):
                 self.possible_header = data.replace("\xa0", " ")
 
             if self.this_tag == "td" or (self.this_tag == "abbr" and self.last_tag == "td"):
+                if self.possible_header == "Moteur":
+                    self.motor += 1
+                if self.possible_header in self.motor_spec:
+                    self.possible_header = self.possible_header + " " + str(self.motor)
+
                 self.this_car_data.extend([[self.possible_header, data.replace("\xa0", " ")]])
 
             if self.this_tag == "option" and len(self.this_attrs) == 2:
